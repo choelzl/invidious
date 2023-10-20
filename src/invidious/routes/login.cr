@@ -38,7 +38,18 @@ module Invidious::Routes::Login
 
     authorization_code = env.params.query["code"]?
     provider_k = env.params.url["provider"]
+    state = env.params.query["state"]?
+    state_cookie = env.request.cookies["OAUTH_STATE"]?
 
+    if state_cookie.nil?
+      return error_template(403, "Missing Oauth cookie")
+    end
+    if state.nil?
+      return error_template(403, "Missing Oauth state")
+    end
+    if !Crypto::Subtle.constant_time_compare(state_cookie.value, state)
+      return error_template(403, "Invalid Oauth state")
+    end
     if authorization_code.nil?
       return error_template(403, "Missing Authorization Code")
     end
@@ -86,7 +97,10 @@ module Invidious::Routes::Login
     case account_type
     when "oauth"
       provider_k = env.params.body["provider"]
-      env.redirect OAuthHelper.make_client(provider_k).get_authorize_uri("openid email profile")
+      state = "#{Base64.urlsafe_encode(Random::Secure.random_bytes(32))}"
+
+      env.response.cookies["OAUTH_STATE"] = Invidious::User::Cookies.oauth_state(CONFIG.domain, state)
+      env.redirect OAuthHelper.make_client(provider_k).get_authorize_uri("openid email profile", state)
     when "saml"
       return error_template(501, "Not implemented")
     when "ldap"
