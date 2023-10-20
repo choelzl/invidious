@@ -37,5 +37,20 @@ struct Invidious::User
         samesite: HTTP::Cookie::SameSite::Lax
       )
     end
+
+    # Oauth2 State (OAUTH_STATE) cookie
+    # Parameter "domain" comes from the global config
+    def oauth_state(domain : String?, state) : HTTP::Cookie
+      return HTTP::Cookie.new(
+        name: "OAUTH_STATE",
+        domain: domain,
+        path: "/",
+        value: state,
+        expires: Time.utc + 2.years,
+        secure: SECURE,
+        http_only: true,
+        samesite: HTTP::Cookie::SameSite::Lax
+      )
+    end
   end
 end
